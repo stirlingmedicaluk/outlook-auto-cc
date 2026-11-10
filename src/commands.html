@@ -3,9 +3,14 @@
 <head>
   <meta charset="UTF-8" />
   <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
-  <title>Auto CC Projects</title>
+  <title>Auto CC</title>
   <script type="text/javascript" src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
-  <script type="text/javascript" src="launchevent.js"></script>
+  <!-- Used by new Outlook and Outlook on the web. Classic Outlook loads launchevent.js directly. -->
+  <script type="text/javascript">
+    Office.onReady();
+  </script>
+  <!-- ?v= forces Outlook to fetch the current file instead of a cached copy; bump it on each change. -->
+  <script type="text/javascript" src="launchevent.js?v=4"></script>
 </head>
 <body>
 </body>
