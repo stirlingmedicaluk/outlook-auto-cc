@@ -112,7 +112,16 @@
         });
     }
 
-    function save(addresses) {
+    // Closes the panel; older Outlook versions without closeContainer just keep it open.
+    function closePanel() {
+      try {
+        Office.context.ui.closeContainer();
+      } catch (e) {
+        // Leave the panel open with the "Saved" message showing.
+      }
+    }
+
+    function save(addresses, closeAfter) {
       var settings = Office.context.roamingSettings;
       if (addresses.length) {
         settings.set(CC_SETTING, addresses);
@@ -130,6 +139,9 @@
         showStatus(addresses.length
           ? "Saved. New emails, replies and forwards will CC " + addresses.length + (addresses.length === 1 ? " address." : " addresses.")
           : "Auto CC is off.", "ok");
+        if (closeAfter) {
+          setTimeout(closePanel, 800);
+        }
       });
     }
 
@@ -145,11 +157,11 @@
           showStatus("Not a valid email address: " + invalid.join(", "), "error");
           return;
         }
-        save(addresses);
+        save(addresses, true);
       });
 
       clearButton.addEventListener("click", function () {
-        save([]);
+        save([], false);
       });
     });
   </script>
