@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Auto CC settings</title>
+  <script type="text/javascript" src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
+  <style>
+    :root {
+      --bg: #ffffff;
+      --text: #242424;
+      --muted: #616161;
+      --border: #d1d1d1;
+      --accent: #0f6cbd;
+      --accent-hover: #115ea3;
+      --ok: #107c10;
+      --error: #c50f1f;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #292929;
+        --text: #ffffff;
+        --muted: #adadad;
+        --border: #666666;
+        --accent: #479ef5;
+        --accent-hover: #62abf5;
+        --ok: #54b054;
+        --error: #f1707b;
+      }
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 16px;
+      background: var(--bg);
+      color: var(--text);
+      font: 14px/1.4 "Segoe UI", system-ui, sans-serif;
+    }
+    h1 { font-size: 18px; font-weight: 600; margin: 0 0 8px; }
+    p { margin: 0 0 16px; color: var(--muted); }
+    label { display: block; font-weight: 600; margin-bottom: 4px; }
+    textarea {
+      width: 100%;
+      min-height: 96px;
+      padding: 8px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      background: var(--bg);
+      color: var(--text);
+      font: inherit;
+      resize: vertical;
+    }
+    textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+    .hint { font-size: 12px; color: var(--muted); margin: 4px 0 16px; }
+    .buttons { display: flex; gap: 8px; }
+    button {
+      padding: 6px 16px;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text);
+      font: inherit;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    button.primary { background: var(--accent); border-color: var(--accent); color: #ffffff; }
+    button.primary:hover { background: var(--accent-hover); }
+    button:disabled { opacity: 0.5; cursor: default; }
+    #status { margin-top: 12px; min-height: 20px; }
+    #status.ok { color: var(--ok); }
+    #status.error { color: var(--error); }
+  </style>
+</head>
+<body>
+  <h1>Auto CC</h1>
+  <p>These addresses are added to CC whenever you start a new email, reply or forward. You can still remove them from any email before sending.</p>
+
+  <label for="addresses">CC addresses</label>
+  <textarea id="addresses" placeholder="name@example.com" spellcheck="false" disabled></textarea>
+  <div class="hint">One address per line. Leave empty to turn Auto CC off.</div>
+
+  <div class="buttons">
+    <button id="save" class="primary" disabled>Save</button>
+    <button id="clear" disabled>Clear</button>
+  </div>
+  <div id="status" role="status"></div>
+
+  <script>
+    var CC_SETTING = "ccAddresses";
+    var EMAIL_PATTERN = /^[^\s@<>(),;:"]+@[^\s@<>(),;:"]+\.[^\s@<>(),;:"]+$/;
+
+    var box = document.getElementById("addresses");
+    var saveButton = document.getElementById("save");
+    var clearButton = document.getElementById("clear");
+    var status = document.getElementById("status");
+
+    function showStatus(message, kind) {
+      status.textContent = message;
+      status.className = kind || "";
+    }
+
+    function parseAddresses(text) {
+      var seen = {};
+      return text
+        .split(/[\s,;]+/)
+        .map(function (a) { return a.trim(); })
+        .filter(function (a) {
+          var key = a.toLowerCase();
+          if (!a || seen[key]) return false;
+          seen[key] = true;
+          return true;
+        });
+    }
+
+    function save(addresses) {
+      var settings = Office.context.roamingSettings;
+      if (addresses.length) {
+        settings.set(CC_SETTING, addresses);
+      } else {
+        settings.remove(CC_SETTING);
+      }
+      saveButton.disabled = clearButton.disabled = true;
+      settings.saveAsync(function (result) {
+        saveButton.disabled = clearButton.disabled = false;
+        if (result.status !== Office.AsyncResultStatus.Succeeded) {
+          showStatus("Couldn't save: " + result.error.message, "error");
+          return;
+        }
+        box.value = addresses.join("\n");
+        showStatus(addresses.length
+          ? "Saved. New emails, replies and forwards will CC " + addresses.length + (addresses.length === 1 ? " address." : " addresses.")
+          : "Auto CC is off.", "ok");
+      });
+    }
+
+    Office.onReady(function () {
+      var saved = Office.context.roamingSettings.get(CC_SETTING) || [];
+      box.value = saved.join("\n");
+      box.disabled = saveButton.disabled = clearButton.disabled = false;
+
+      saveButton.addEventListener("click", function () {
+        var addresses = parseAddresses(box.value);
+        var invalid = addresses.filter(function (a) { return !EMAIL_PATTERN.test(a); });
+        if (invalid.length) {
+          showStatus("Not a valid email address: " + invalid.join(", "), "error");
+          return;
+        }
+        save(addresses);
+      });
+
+      clearButton.addEventListener("click", function () {
+        save([]);
+      });
+    });
+  </script>
+</body>
+</html>
