@@ -4,6 +4,9 @@
  * in To, CC or BCC. A red notice in the compose window says what was added; the
  * user can delete the address from CC as normal.
  *
+ * It also runs when the user clicks Send: if the subject has no project number,
+ * Outlook asks whether to send anyway.
+ *
  * No addresses are stored in the code. Each user enters their own on the settings
  * page (settings.html, opened from the add-in's button under Apps), which saves
  * them in that user's mailbox.
@@ -115,4 +118,33 @@ function onNewMessageComposeHandler(event) {
   }
 }
 
+// Project numbers: 6 digits starting with 2, or 5 digits starting with 9,
+// not part of a longer number (e.g. "RE: 201325 Welbeck" matches, "2013256" doesn't).
+var PROJECT_NUMBER_PATTERN = /(?:^|\D)(?:2\d{5}|9\d{4})(?:\D|$)/;
+
+function hasProjectNumber(subject) {
+  return PROJECT_NUMBER_PATTERN.test(subject || "");
+}
+
+// Runs when the user clicks Send. If the subject has no project number, Outlook shows
+// a pop-up with Send Anyway / Don't Send (SendMode="PromptUser" in the manifest).
+function onMessageSendHandler(event) {
+  try {
+    Office.context.mailbox.item.subject.getAsync(function (result) {
+      // If the subject can't be read, don't get in the way of sending.
+      if (result.status !== Office.AsyncResultStatus.Succeeded || hasProjectNumber(result.value)) {
+        event.completed({ allowEvent: true });
+        return;
+      }
+      event.completed({
+        allowEvent: false,
+        errorMessage: "No project number found in the subject (6 digits starting with 2, or 5 digits starting with 9). Send anyway, or don't send and add it to the subject."
+      });
+    });
+  } catch (e) {
+    event.completed({ allowEvent: true });
+  }
+}
+
 Office.actions.associate("onNewMessageComposeHandler", onNewMessageComposeHandler);
+Office.actions.associate("onMessageSendHandler", onMessageSendHandler);
